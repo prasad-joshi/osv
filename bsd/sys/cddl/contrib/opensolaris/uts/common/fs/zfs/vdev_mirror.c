@@ -233,6 +233,15 @@ vdev_mirror_child_select(zio_t *zio)
 		mc = &mm->mm_child[c];
 		if (mc->mc_tried || mc->mc_skipped)
 			continue;
+#ifdef __OSV__
+		/*
+	         * If mc->mc_vd is null, then spa failed to recognize a child
+		 * vdev during the boot up time, but it will be later detected
+		 * and will not prevent things from working as desired.
+		 */
+		if (!mc->mc_vd)
+			continue;
+#endif
 		if (!vdev_readable(mc->mc_vd)) {
 			mc->mc_error = ENXIO;
 			mc->mc_tried = 1;	/* don't even try */
