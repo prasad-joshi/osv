@@ -116,6 +116,11 @@ def start_osv_qemu(options):
         args += [
         "-device", "virtio-blk-pci,id=blk0,bootindex=0,drive=hd0,scsi=off",
         "-drive", "file=%s,if=none,id=hd0,aio=native,cache=%s" % (options.image_file, cache)]
+    # Insert additional vdisk images
+    if (options.vdisk):
+        for vdisk_path in options.vdisk:
+            args += [
+            "-drive", "file=%s,if=virtio" % vdisk_path]
 
     if (options.no_shutdown):
         args += ["-no-reboot", "-no-shutdown"]
@@ -383,6 +388,8 @@ if (__name__ == "__main__"):
                         help="don't start OSv till otherwise specified, e.g. through the QEMU monitor or a remote gdb")
     parser.add_argument("-i", "--image", action="store", default=None, metavar="IMAGE",
                         help="path to disk image file. defaults to build/$mode/usr.img")
+    parser.add_argument("--vdisk", action="append", default=None, metavar="IMAGE",
+                        help="specify path to additional vdisk images (currently limited to kvm/virtio)")
     parser.add_argument("-S", "--scsi", action="store_true", default=False,
                         help="use virtio-scsi instead of virtio-blk")
     parser.add_argument("-A", "--sata", action="store_true", default=False,
