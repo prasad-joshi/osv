@@ -1192,10 +1192,12 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 			    rdsk);
 			goto error;
 		}
+                printf("%s 1\n", __func__);
 
 		avl_create(&slice_cache, slice_cache_compare,
 		    sizeof (rdsk_node_t), offsetof(rdsk_node_t, rn_node));
 
+#ifndef __OSV__
 		if (strcmp(rdsk, "/dev/") == 0) {
 			struct gmesh mesh;
 			struct gclass *mp;
@@ -1227,6 +1229,7 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 			geom_deletetree(&mesh);
 			goto skipdir;
 		}
+#endif
 
 		/*
 		 * This is not MT-safe, but we have no MT consumers of libzfs
@@ -1245,7 +1248,10 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 			slice->rn_nozpool = B_FALSE;
 			avl_add(&slice_cache, slice);
 		}
+
+#ifndef __OSV__
 skipdir:
+#endif
 		/*
 		 * create a thread pool to do all of this in parallel;
 		 * rn_nozpool is not protected, so this is racy in that
