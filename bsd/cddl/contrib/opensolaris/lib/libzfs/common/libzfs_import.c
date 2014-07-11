@@ -1239,6 +1239,15 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 			    (name[1] == 0 || (name[1] == '.' && name[2] == 0)))
 				continue;
 
+#ifdef __OSV__
+			/*
+			 * Skip check for all non virtio block devices
+			 */
+			if (strncmp(name, "vblk", 4) != 0) {
+				continue;
+			}
+#endif
+
 			slice = zfs_alloc(hdl, sizeof (rdsk_node_t));
 			slice->rn_name = zfs_strdup(hdl, name);
 			slice->rn_avl = &slice_cache;
