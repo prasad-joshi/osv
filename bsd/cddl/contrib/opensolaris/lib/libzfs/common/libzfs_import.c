@@ -372,15 +372,24 @@ refresh_config(libzfs_handle_t *hdl, nvlist_t *config)
 	nvlist_t *nvl;
 	zfs_cmd_t zc = { 0 };
 	int err;
+        int i;
+        char *p;
+
+        dump_nvlist(config, 8);
 
 	if (zcmd_write_conf_nvlist(hdl, &zc, config) != 0)
 		return (NULL);
 
-	if (zcmd_alloc_dst_nvlist(hdl, &zc,
-	    zc.zc_nvlist_conf_size * 2) != 0) {
+	if (zcmd_alloc_dst_nvlist(hdl, &zc, zc.zc_nvlist_conf_size * 2) != 0) {
 		zcmd_free_nvlists(&zc);
 		return (NULL);
 	}
+                printf("%s 1 before ioctl\n", __func__);
+                p = (char *) zc.zc_nvlist_dst;
+                for (i = 0; i < zc.zc_nvlist_dst_size; i++) {
+//                        printf("[%d] = %c ", i, p[i]);
+                }
+                printf("\n");
 
 	while ((err = ioctl(hdl->libzfs_fd, ZFS_IOC_POOL_TRYIMPORT,
 	    &zc)) != 0 && errno == ENOMEM) {
@@ -389,16 +398,25 @@ refresh_config(libzfs_handle_t *hdl, nvlist_t *config)
 			return (NULL);
 		}
 	}
+                printf("%s 2\n", __func__);
 
 	if (err) {
 		zcmd_free_nvlists(&zc);
 		return (NULL);
 	}
+                printf("%s After IOCTL 3\n", __func__);
+
+                p = (char *) zc.zc_nvlist_dst;
+                for (i = 0; i < zc.zc_nvlist_dst_size; i++) {
+ //                       printf("[%d] = %c ", i, p[i]);
+                }
+                printf("\n");
 
 	if (zcmd_read_dst_nvlist(hdl, &zc, &nvl) != 0) {
 		zcmd_free_nvlists(&zc);
 		return (NULL);
 	}
+                printf("%s 4\n", __func__);
 
 	zcmd_free_nvlists(&zc);
 	return (nvl);
@@ -456,9 +474,12 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 	for (pe = pl->pools; pe != NULL; pe = pe->pe_next) {
 		uint64_t id, max_txg = 0;
 
+                printf("%s 1\n", __func__);
+
 		if (nvlist_alloc(&config, NV_UNIQUE_NAME, 0) != 0)
 			goto nomem;
 		config_seen = B_FALSE;
+                printf("%s 2\n", __func__);
 
 		/*
 		 * Iterate over all toplevel vdevs.  Grab the pool configuration
@@ -466,6 +487,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 		 * add them as necessary to the 'vdevs' member of the config.
 		 */
 		for (ve = pe->pe_vdevs; ve != NULL; ve = ve->ve_next) {
+                printf("%s 3\n", __func__);
 
 			/*
 			 * Determine the best configuration for this vdev by
@@ -475,12 +497,14 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 			best_txg = 0;
 			for (ce = ve->ve_configs; ce != NULL;
 			    ce = ce->ce_next) {
+                printf("%s 4\n", __func__);
 
 				if (ce->ce_txg > best_txg) {
 					tmp = ce->ce_config;
 					best_txg = ce->ce_txg;
 				}
 			}
+                printf("%s 5\n", __func__);
 
 			/*
 			 * We rely on the fact that the max txg for the
@@ -517,6 +541,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 					    hole_array, holes) == 0);
 				}
 			}
+                printf("%s 6\n", __func__);
 
 			if (!config_seen) {
 				/*
@@ -576,6 +601,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 
 				config_seen = B_TRUE;
 			}
+                printf("%s 7\n", __func__);
 
 			/*
 			 * Add this top-level vdev to the child array.
@@ -600,10 +626,12 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 				child = newchild;
 				children = id + 1;
 			}
+                printf("%s 8\n", __func__);
 			if (nvlist_dup(nvtop, &child[id], 0) != 0)
 				goto nomem;
 
 		}
+                printf("%s 9\n", __func__);
 
 		/*
 		 * If we have information about all the top-levels then
@@ -633,6 +661,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 				children = max_id;
 			}
 		}
+                printf("%s 10\n", __func__);
 
 		verify(nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID,
 		    &guid) == 0);
@@ -672,6 +701,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 				child[c] = holey;
 			}
 		}
+                printf("%s 11\n", __func__);
 
 		/*
 		 * Look for any missing top-level vdevs.  If this is the case,
@@ -699,6 +729,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 				child[c] = missing;
 			}
 		}
+                printf("%s 12\n", __func__);
 
 		/*
 		 * Put all of this pool's top-level vdevs into a root vdev.
@@ -714,6 +745,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 			nvlist_free(nvroot);
 			goto nomem;
 		}
+                printf("%s 13\n", __func__);
 
 		for (c = 0; c < children; c++)
 			nvlist_free(child[c]);
@@ -729,6 +761,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 			nvlist_free(nvroot);
 			goto nomem;
 		}
+                printf("%s 14\n", __func__);
 
 		/*
 		 * Add the root vdev to this pool's configuration.
@@ -739,6 +772,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 			goto nomem;
 		}
 		nvlist_free(nvroot);
+                printf("%s 15\n", __func__);
 
 		/*
 		 * zdb uses this path to report on active pools that were
@@ -764,12 +798,14 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 			config = NULL;
 			continue;
 		}
+                printf("%s 16\n", __func__);
 
 		if ((nvl = refresh_config(hdl, config)) == NULL) {
 			nvlist_free(config);
 			config = NULL;
 			continue;
 		}
+                printf("%s 17\n", __func__);
 
 		nvlist_free(config);
 		config = nvl;
@@ -787,6 +823,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 					goto nomem;
 			}
 		}
+                printf("%s 18\n", __func__);
 
 		/*
 		 * Update the paths for l2cache devices.
@@ -798,6 +835,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 					goto nomem;
 			}
 		}
+                printf("%s 19\n", __func__);
 
 		/*
 		 * Restore the original information read from the actual label.
@@ -812,6 +850,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 			verify(nvlist_add_string(config, ZPOOL_CONFIG_HOSTNAME,
 			    hostname) == 0);
 		}
+                printf("%s 20\n", __func__);
 
 add_pool:
 		/*
@@ -826,12 +865,14 @@ add_pool:
 		nvlist_free(config);
 		config = NULL;
 	}
+                printf("%s 21\n", __func__);
 
 	if (!found_one) {
 		nvlist_free(ret);
 		ret = NULL;
 	}
 
+                printf("%s 22\n", __func__);
 	return (ret);
 
 nomem:
@@ -879,19 +920,23 @@ zpool_read_label(int fd, nvlist_t **config)
 		return (-1);
 
 	for (l = 0; l < VDEV_LABELS; l++) {
+                printf("%s 1 l = %d\n", __func__, l);
 		if (pread64(fd, label, sizeof (vdev_label_t),
 		    label_offset(size, l)) != sizeof (vdev_label_t))
 			continue;
+                printf("%s 2 l = %d\n", __func__, l);
 
 		if (nvlist_unpack(label->vl_vdev_phys.vp_nvlist,
 		    sizeof (label->vl_vdev_phys.vp_nvlist), config, 0) != 0)
 			continue;
+                printf("%s 3 l = %d\n", __func__, l);
 
 		if (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_STATE,
 		    &state) != 0 || state > POOL_STATE_L2CACHE) {
 			nvlist_free(*config);
 			continue;
 		}
+                printf("%s 4 l = %d\n", __func__, l);
 
 		if (state != POOL_STATE_SPARE && state != POOL_STATE_L2CACHE &&
 		    (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_TXG,
@@ -899,6 +944,7 @@ zpool_read_label(int fd, nvlist_t **config)
 			nvlist_free(*config);
 			continue;
 		}
+                printf("%s 5 l = %d\n", __func__, l);
 
 		free(label);
 		return (0);
@@ -906,6 +952,7 @@ zpool_read_label(int fd, nvlist_t **config)
 
 	free(label);
 	*config = NULL;
+                printf("%s 6 l = %d\n", __func__, l);
 	return (0);
 }
 
@@ -1045,14 +1092,17 @@ zpool_open_func(void *arg)
 	nvlist_t *config;
 	int fd;
 
+        printf("%s 1\n", __func__);
 	if (rn->rn_nozpool)
 		return;
+        printf("%s 2 rn->rn_name = %s\n", __func__, rn->rn_name);
 	if ((fd = openat64(rn->rn_dfd, rn->rn_name, O_RDONLY)) < 0) {
 		/* symlink to a device that's no longer there */
 		if (errno == ENOENT)
 			nozpool_all_slices(rn->rn_avl, rn->rn_name);
 		return;
 	}
+        printf("%s 3\n", __func__);
 	/*
 	 * Ignore failed stats.  We only want regular
 	 * files, character devs and block devs.
@@ -1064,6 +1114,7 @@ zpool_open_func(void *arg)
 		(void) close(fd);
 		return;
 	}
+        printf("%s 4\n", __func__);
 	/* this file is too small to hold a zpool */
 	if (S_ISREG(statbuf.st_mode) &&
 	    statbuf.st_size < SPA_MINDEVSIZE) {
@@ -1076,6 +1127,7 @@ zpool_open_func(void *arg)
 		 */
 		check_slices(rn->rn_avl, fd, rn->rn_name);
 	}
+        printf("%s 5\n", __func__);
 
 	if ((zpool_read_label(fd, &config)) != 0) {
 		(void) close(fd);
@@ -1083,12 +1135,14 @@ zpool_open_func(void *arg)
 		return;
 	}
 	(void) close(fd);
+        printf("%s 6\n", __func__);
 
 
 	rn->rn_config = config;
 	if (config != NULL) {
 		assert(rn->rn_nozpool == B_FALSE);
 	}
+        printf("%s 7\n", __func__);
 }
 
 /*
@@ -1162,6 +1216,7 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 		tpool_t *t;
 		char *rdsk;
 		int dfd;
+                printf("%s 0\n", __func__);
 
 		/* use realpath to normalize the path */
 		if (realpath(dir[i], path) == 0) {
@@ -1273,12 +1328,14 @@ skipdir:
 		 */
 		t = tpool_create(1, 2 * sysconf(_SC_NPROCESSORS_ONLN),
 		    0, NULL);
+                printf("%s 5\n", __func__);
 		for (slice = avl_first(&slice_cache); slice;
 		    (slice = avl_walk(&slice_cache, slice,
 		    AVL_AFTER)))
 			(void) tpool_dispatch(t, zpool_open_func, slice);
 		tpool_wait(t);
 		tpool_destroy(t);
+                printf("%s 6\n", __func__);
 
 		cookie = NULL;
 		while ((slice = avl_destroy_nodes(&slice_cache,
@@ -1309,20 +1366,25 @@ skipdir:
 				}
 				/* use the non-raw path for the config */
 				(void) strlcpy(end, slice->rn_name, pathleft);
+                                printf("using path rn_name = %s\n", slice->rn_name);
 				if (add_config(hdl, &pools, path, config) != 0)
 					goto error;
 			}
 			free(slice->rn_name);
 			free(slice);
 		}
+                printf("%s 7\n", __func__);
 		avl_destroy(&slice_cache);
 
 		(void) closedir(dirp);
 		dirp = NULL;
+                printf("%s 8\n", __func__);
 	}
+                printf("%s 9\n", __func__);
 
 	ret = get_configs(hdl, &pools, iarg->can_be_active);
 
+                printf("%s 10\n", __func__);
 error:
 	for (pe = pools.pools; pe != NULL; pe = penext) {
 		penext = pe->pe_next;
@@ -1338,6 +1400,7 @@ error:
 		}
 		free(pe);
 	}
+                printf("%s 11\n", __func__);
 
 	for (ne = pools.names; ne != NULL; ne = nenext) {
 		nenext = ne->ne_next;
@@ -1345,10 +1408,12 @@ error:
 			free(ne->ne_name);
 		free(ne);
 	}
+                printf("%s 12\n", __func__);
 
 	if (dirp)
 		(void) closedir(dirp);
 
+                printf("%s 8\n", __func__);
 	return (ret);
 }
 

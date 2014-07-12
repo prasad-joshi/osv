@@ -43,6 +43,8 @@ def set_imgargs(options):
             execute = cmdline.read()
     if (options.verbose):
         execute = "--verbose " + execute
+    else:
+        execute = "--verbose " + execute
 
     if options.jvm_debug or options.jvm_suspend:
         if '-agentlib:jdwp' in execute:
@@ -127,6 +129,8 @@ def start_osv_qemu(options):
 
     if (options.wait):
         args += ["-S"]
+
+    args += ["-drive", "file=/home/prasad/Sources/clean_osv/disk2.img,if=virtio"]
 
     if (options.vmxnet3):
         net_device_options = ['vmxnet3']

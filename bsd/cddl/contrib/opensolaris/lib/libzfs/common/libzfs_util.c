@@ -780,6 +780,7 @@ zcmd_alloc_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc, size_t len)
 	    zfs_alloc(hdl, zc->zc_nvlist_dst_size)) == 0)
 		return (-1);
 
+        memset((char *) zc->zc_nvlist_dst, 'A', zc->zc_nvlist_dst_size);
 	return (0);
 }
 
@@ -851,9 +852,11 @@ zcmd_write_src_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc, nvlist_t *nvl)
 int
 zcmd_read_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc, nvlist_t **nvlp)
 {
+        printf("%s size = %lu\n", __func__, zc->zc_nvlist_dst_size);
 	if (nvlist_unpack((void *)(uintptr_t)zc->zc_nvlist_dst,
-	    zc->zc_nvlist_dst_size, nvlp, 0) != 0)
+	    zc->zc_nvlist_dst_size, nvlp, 0) != 0) {
 		return (no_memory(hdl));
+               }
 
 	return (0);
 }

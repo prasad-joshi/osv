@@ -1295,6 +1295,8 @@ zfs_ioc_pool_destroy(zfs_cmd_t *zc)
 	return (error);
 }
 
+#include <osv/debug.h>
+
 static int
 zfs_ioc_pool_import(zfs_cmd_t *zc)
 {
@@ -1302,14 +1304,19 @@ zfs_ioc_pool_import(zfs_cmd_t *zc)
 	uint64_t guid;
 	int error;
 
+        kprintf("%s ====>\n", __func__);
+
 	if ((error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
-	    zc->zc_iflags, &config)) != 0)
+	    zc->zc_iflags, &config)) != 0) {
+        kprintf("%s <==== 1\n", __func__);
 		return (error);
+        }
 
 	if (zc->zc_nvlist_src_size != 0 && (error =
 	    get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
 	    zc->zc_iflags, &props))) {
 		nvlist_free(config);
+        kprintf("%s <==== 2\n", __func__);
 		return (error);
 	}
 
@@ -1322,8 +1329,10 @@ zfs_ioc_pool_import(zfs_cmd_t *zc)
 	if (zc->zc_nvlist_dst != 0) {
 		int err;
 
+                kprintf("****** %s puting nvlist\n", __func__);
 		if ((err = put_nvlist(zc, config)) != 0)
 			error = err;
+                kprintf("****** %s done puting nvlist\n", __func__);
 	}
 
 	nvlist_free(config);
@@ -1331,6 +1340,7 @@ zfs_ioc_pool_import(zfs_cmd_t *zc)
 	if (props)
 		nvlist_free(props);
 
+        kprintf("%s <==== 3\n", __func__);
 	return (error);
 }
 
@@ -1400,6 +1410,161 @@ zfs_ioc_pool_stats(zfs_cmd_t *zc)
 	return (ret);
 }
 
+#define printf kprintf
+
+#define	NVP(elem, type, vtype, ptype, format) { \
+	vtype	value; \
+\
+	(void) nvpair_value_##type(elem, &value); \
+	(void) printf("%*s%s: " format "\n", indent, "", \
+	    nvpair_name(elem), (ptype)value); \
+}
+
+#define	NVPA(elem, type, vtype, ptype, format) { \
+	uint_t	i, count; \
+	vtype	*value;  \
+\
+	(void) nvpair_value_##type(elem, &value, &count); \
+	for (i = 0; i < count; i++) { \
+		(void) printf("%*s%s[%d]: " format "\n", indent, "", \
+		    nvpair_name(elem), i, (ptype)value[i]); \
+	} \
+}
+
+/*
+ * Similar to nvlist_print() but handles arrays slightly differently.
+ */
+void
+dump_nvlist(nvlist_t *list, int indent)
+{
+	nvpair_t	*elem = NULL;
+	boolean_t	bool_value;
+	nvlist_t	*nvlist_value;
+	nvlist_t	**nvlist_array_value;
+	uint_t		i, count;
+
+	if (list == NULL) {
+		return;
+	}
+
+	while ((elem = nvlist_next_nvpair(list, elem)) != NULL) {
+		switch (nvpair_type(elem)) {
+		case DATA_TYPE_BOOLEAN:
+			(void) printf("%*s%s\n", indent, "", nvpair_name(elem));
+			break;
+
+		case DATA_TYPE_BOOLEAN_VALUE:
+			(void) nvpair_value_boolean_value(elem, &bool_value);
+			(void) printf("%*s%s: %s\n", indent, "",
+			    nvpair_name(elem), bool_value ? "true" : "false");
+			break;
+
+		case DATA_TYPE_BYTE:
+			NVP(elem, byte, uchar_t, int, "%u");
+			break;
+
+		case DATA_TYPE_INT8:
+			NVP(elem, int8, int8_t, int, "%d");
+			break;
+
+		case DATA_TYPE_UINT8:
+			NVP(elem, uint8, uint8_t, int, "%u");
+			break;
+
+		case DATA_TYPE_INT16:
+			NVP(elem, int16, int16_t, int, "%d");
+			break;
+
+		case DATA_TYPE_UINT16:
+			NVP(elem, uint16, uint16_t, int, "%u");
+			break;
+
+		case DATA_TYPE_INT32:
+			NVP(elem, int32, int32_t, long, "%ld");
+			break;
+
+		case DATA_TYPE_UINT32:
+			NVP(elem, uint32, uint32_t, ulong_t, "%lu");
+			break;
+
+		case DATA_TYPE_INT64:
+			NVP(elem, int64, int64_t, longlong_t, "%lld");
+			break;
+
+		case DATA_TYPE_UINT64:
+			NVP(elem, uint64, uint64_t, u_longlong_t, "%llu");
+			break;
+
+		case DATA_TYPE_STRING:
+			NVP(elem, string, char *, char *, "'%s'");
+			break;
+
+		case DATA_TYPE_BYTE_ARRAY:
+			NVPA(elem, byte_array, uchar_t, int, "%u");
+			break;
+
+		case DATA_TYPE_INT8_ARRAY:
+			NVPA(elem, int8_array, int8_t, int, "%d");
+			break;
+
+		case DATA_TYPE_UINT8_ARRAY:
+			NVPA(elem, uint8_array, uint8_t, int, "%u");
+			break;
+
+		case DATA_TYPE_INT16_ARRAY:
+			NVPA(elem, int16_array, int16_t, int, "%d");
+			break;
+
+		case DATA_TYPE_UINT16_ARRAY:
+			NVPA(elem, uint16_array, uint16_t, int, "%u");
+			break;
+
+		case DATA_TYPE_INT32_ARRAY:
+			NVPA(elem, int32_array, int32_t, long, "%ld");
+			break;
+
+		case DATA_TYPE_UINT32_ARRAY:
+			NVPA(elem, uint32_array, uint32_t, ulong_t, "%lu");
+			break;
+
+		case DATA_TYPE_INT64_ARRAY:
+			NVPA(elem, int64_array, int64_t, longlong_t, "%lld");
+			break;
+
+		case DATA_TYPE_UINT64_ARRAY:
+			NVPA(elem, uint64_array, uint64_t, u_longlong_t,
+			    "%llu");
+			break;
+
+		case DATA_TYPE_STRING_ARRAY:
+			NVPA(elem, string_array, char *, char *, "'%s'");
+			break;
+
+		case DATA_TYPE_NVLIST:
+			(void) nvpair_value_nvlist(elem, &nvlist_value);
+			(void) printf("%*s%s:\n", indent, "",
+			    nvpair_name(elem));
+			dump_nvlist(nvlist_value, indent + 4);
+			break;
+
+		case DATA_TYPE_NVLIST_ARRAY:
+			(void) nvpair_value_nvlist_array(elem,
+			    &nvlist_array_value, &count);
+			for (i = 0; i < count; i++) {
+				(void) printf("%*s%s[%u]:\n", indent, "",
+				    nvpair_name(elem), i);
+				dump_nvlist(nvlist_array_value[i], indent + 4);
+			}
+			break;
+
+		default:
+			(void) printf("bad config type "
+			    "%d for %s\n", nvpair_type(elem),
+			    nvpair_name(elem));
+		}
+	}
+}
+
 /*
  * Try to import the given pool, returning pool stats as appropriate so that
  * user land knows which devices are available and overall pool health.
@@ -1410,11 +1575,14 @@ zfs_ioc_pool_tryimport(zfs_cmd_t *zc)
 	nvlist_t *tryconfig, *config;
 	int error;
 
+        kprintf("%s ========>\n", __func__);
 	if ((error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
 	    zc->zc_iflags, &tryconfig)) != 0)
 		return (error);
 
 	config = spa_tryimport(tryconfig);
+
+        dump_nvlist(config, 8);
 
 	nvlist_free(tryconfig);
 
@@ -5377,6 +5545,7 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 	cflag = ZFS_CMD_COMPAT_NONE;
 	len = IOCPARM_LEN(cmd);
+        kprintf("%s ^^^^ 1\n", __func__);
 
 	/*
 	 * Check if we have sufficient kernel memory allocated
@@ -5391,16 +5560,29 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			return (EINVAL);
 	else
 		vec = ZFS_IOC(cmd);
+        kprintf("%s ^^^^ 2\n", __func__);
+
+        if (cmd == ZFS_IOC_POOL_TRYIMPORT) {
+                kprintf("%s ^^^^^^ 1 import command\n", __func__);
+        }
+
+        if (vec == 2) {
+                kprintf("%s ^^^^^^ 2 import command\n", __func__);
+        }
 
 	if (cflag != ZFS_CMD_COMPAT_NONE) {
-		if (vec == ZFS_IOC_COMPAT_PASS)
+		if (vec == ZFS_IOC_COMPAT_PASS) {
+                        kprintf("%s ^^^^^^^ returning\n", __func__);
 			return (0);
+                }
 		else if (vec == ZFS_IOC_COMPAT_FAIL)
 			return (ENOTSUP);
 	}
+        kprintf("%s ^^^^ 3\n", __func__);
 
 	if (vec >= sizeof (zfs_ioc_vec) / sizeof (zfs_ioc_vec[0]))
 		return (EINVAL);
+        kprintf("%s ^^^^ 4\n", __func__);
 
 	if (cflag != ZFS_CMD_COMPAT_NONE) {
 		zc = kmem_zalloc(sizeof(zfs_cmd_t), KM_SLEEP);
@@ -5410,6 +5592,7 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	} else {
 		zc = (void *)addr;
 	}
+        kprintf("%s ^^^^ 5\n", __func__);
 
 #ifdef __OSV__
 	error = 0;
@@ -5445,20 +5628,24 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			break;
 		}
 	}
+        kprintf("%s ^^^^ 6 error = %d vec = %d\n", __func__, error, vec);
 
 	if (error == 0)
 		error = zfs_ioc_vec[vec].zvec_func(zc);
+        kprintf("%s ^^^^ 7\n", __func__);
 
 	if (error == 0) {
 		if (zfs_ioc_vec[vec].zvec_his_log)
 			zfs_log_history(zc);
 	}
+        kprintf("%s ^^^^ 8\n", __func__);
 
 	if (cflag != ZFS_CMD_COMPAT_NONE) {
 		zfs_ioctl_compat_post(zc, ZFS_IOC(cmd), cflag);
 		zfs_cmd_compat_put(zc, addr, cflag);
 		kmem_free(zc, sizeof(zfs_cmd_t));
 	}
+        kprintf("%s ^^^^ 9\n", __func__);
 
 	return (error);
 }

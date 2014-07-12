@@ -22,8 +22,11 @@ static zfs_device_priv *to_priv(device *dev)
     return reinterpret_cast<zfs_device_priv*>(dev->private_data);
 }
 
+#include <osv/debug.h>
+
 static int zfs_ioctl(device* dev, ulong req, void* buffer)
 {
+    kprintf("^^^^^^^^^^ %s ==>\n", __func__);
     return osv_zfs_ioctl(req, buffer);
 }
 

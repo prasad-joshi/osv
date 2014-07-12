@@ -65,8 +65,6 @@ static void mkfs(void)
     vector<string> zpool_args = {"zpool", "create", "-f", "-R", "/zfs", "osv",
         "/dev/vblk0.1"};
 
-    get_blk_devices(zpool_args);
-
     // Create zpool named osv
     run_cmd("/zpool.so", zpool_args);
 
@@ -76,6 +74,14 @@ static void mkfs(void)
     // Enable lz4 compression on the created zfs dataset
     // NOTE: Compression is disabled after image creation.
     run_cmd("/zfs.so", {"zfs", "set", "compression=lz4", "osv"});
+
+    // Create zpool named tank
+    vector<string> tank_args = {"zpool", "create", "-f", "tank"};
+    get_blk_devices(tank_args);
+//    run_cmd("/zpool.so", tank_args);
+
+    vector<string> tank_import = {"zpool", "import", "-f", "tank"};
+    run_cmd("/zpool.so", tank_import);
 }
 
 int main(int ac, char** av)

@@ -2260,8 +2260,10 @@ nvlist_common(nvlist_t *nvl, char *buf, size_t *buflen, int encoding,
 	nvs_header_t *nvh = (void *)buf;
 
 	if (buflen == NULL || nvl == NULL ||
-	    (nvs.nvs_priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
+	    (nvs.nvs_priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL) {
+                printf("%s 1 EINVAL\n", __func__);
 		return (EINVAL);
+        }
 
 	nvs.nvs_op = nvs_op;
 
@@ -2272,8 +2274,10 @@ nvlist_common(nvlist_t *nvl, char *buf, size_t *buflen, int encoding,
 	 */
 	switch (nvs_op) {
 	case NVS_OP_ENCODE:
-		if (buf == NULL || *buflen < sizeof (nvs_header_t))
+		if (buf == NULL || *buflen < sizeof (nvs_header_t)) {
+                printf("%s 2 EINVAL\n", __func__);
 			return (EINVAL);
+                }
 
 		nvh->nvh_encoding = encoding;
 		nvh->nvh_endian = nvl_endian = host_endian;
@@ -2282,8 +2286,10 @@ nvlist_common(nvlist_t *nvl, char *buf, size_t *buflen, int encoding,
 		break;
 
 	case NVS_OP_DECODE:
-		if (buf == NULL || *buflen < sizeof (nvs_header_t))
+		if (buf == NULL || *buflen < sizeof (nvs_header_t)) {
+                printf("%s 3 EINVAL\n", __func__);
 			return (EINVAL);
+                }
 
 		/* get method of encoding from first byte */
 		encoding = nvh->nvh_encoding;
@@ -2300,6 +2306,7 @@ nvlist_common(nvlist_t *nvl, char *buf, size_t *buflen, int encoding,
 		break;
 
 	default:
+                printf("%s 4 ENOTSUP\n", __func__);
 		return (ENOTSUP);
 	}
 
@@ -2312,18 +2319,24 @@ nvlist_common(nvlist_t *nvl, char *buf, size_t *buflen, int encoding,
 		 * check endianness, in case we are unpacking
 		 * from a file
 		 */
-		if (nvl_endian != host_endian)
+		if (nvl_endian != host_endian) {
+                printf("%s 5 ENOTSUP nvl_endian = %d host_endian = %d\n", __func__, nvl_endian, host_endian);
 			return (ENOTSUP);
+                }
 		err = nvs_native(&nvs, nvl, buf, buflen);
+                printf("%s 1 err = %d\n", __func__, err);
 		break;
 	case NV_ENCODE_XDR:
 		err = nvs_xdr(&nvs, nvl, buf, buflen);
+                printf("%s 2 err = %d\n", __func__, err);
 		break;
 	default:
+                printf("%s 6 ENOTSUP\n", __func__);
 		err = ENOTSUP;
 		break;
 	}
 
+                printf("%s 3 err = %d\n", __func__, err);
 	return (err);
 }
 
@@ -2417,17 +2430,22 @@ nvlist_xunpack(char *buf, size_t buflen, nvlist_t **nvlp, nv_alloc_t *nva)
 	nvlist_t *nvl;
 	int err;
 
-	if (nvlp == NULL)
+	if (nvlp == NULL) {
+                printf("%s 1 EINVAL\n", __func__);
 		return (EINVAL);
+        }
 
-	if ((err = nvlist_xalloc(&nvl, 0, nva)) != 0)
+	if ((err = nvlist_xalloc(&nvl, 0, nva)) != 0) {
+                printf("%s 2 err = %d\n", __func__, err);
 		return (err);
+        }
 
 	if ((err = nvlist_common(nvl, buf, &buflen, 0, NVS_OP_DECODE)) != 0)
 		nvlist_free(nvl);
 	else
 		*nvlp = nvl;
 
+                printf("%s 3 err = %d\n", __func__, err);
 	return (err);
 }
 
