@@ -289,6 +289,7 @@ tests += tests/misc-ctxsw.so
 tests += tests/tst-readdir.so
 tests += tests/tst-read.so
 tests += tests/tst-symlink.so
+tests += tests/tst-fgets.so
 tests += tests/tst-openat.so
 tests += tests/tst-eventfd.so
 tests += tests/tst-remove.so
@@ -345,7 +346,7 @@ tests += tests/tst-hostname.so
 tests += tests/tst-sendfile.so
 tests += tests/libstatic-thread-variable.so tests/tst-static-thread-variable.so
 tests/tst-static-thread-variable.so: tests/libstatic-thread-variable.so
-tests/tst-static-thread-variable.so: private COMMON += -L./tests -lstatic-thread-variable
+tests/tst-static-thread-variable.so: COMMON += -L./tests -lstatic-thread-variable
 tests += tests/misc-lock-perf.so
 tests += tests/tst-uio.so
 tests += tests/tst-printf.so

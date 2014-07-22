@@ -43,6 +43,8 @@ def set_imgargs(options):
             execute = cmdline.read()
     if (options.verbose):
         execute = "--verbose " + execute
+    else:
+        execute = "--verbose " + execute
 
     if options.jvm_debug or options.jvm_suspend:
         if '-agentlib:jdwp' in execute:
@@ -116,6 +118,9 @@ def start_osv_qemu(options):
         args += [
         "-device", "virtio-blk-pci,id=blk0,bootindex=0,drive=hd0,scsi=off",
         "-drive", "file=%s,if=none,id=hd0,aio=native,cache=%s" % (options.image_file, cache)]
+
+    args += [ "-drive", "file=%s,if=virtio" % ("/home/prasad/Sources/clean_osv/disk2.img") ]
+    args += [ "-drive", "file=%s,if=virtio" % ("/home/prasad/Sources/clean_osv/disk1.qcow2") ]
 
     if (options.no_shutdown):
         args += ["-no-reboot", "-no-shutdown"]

@@ -337,7 +337,6 @@ zvol_free_extents(zvol_state_t *zv)
 }
 
 
-#ifdef NOTYET
 static int
 zvol_get_lbas(zvol_state_t *zv)
 {
@@ -360,6 +359,7 @@ zvol_get_lbas(zvol_state_t *zv)
 
 	return (0);
 }
+#endif
 
 /* ARGSUSED */
 void
@@ -396,8 +396,8 @@ zvol_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx)
 	error = zap_update(os, ZVOL_ZAP_OBJ, "size", 8, 1, &volsize, tx);
 	ASSERT(error == 0);
 }
-#endif
 
+#ifdef NOTYET
 /*
  * Replay a TX_WRITE ZIL transaction that didn't get committed
  * after a system failure
@@ -489,8 +489,6 @@ zvol_name2minor(const char *name, minor_t *minor)
 #endif	/* sun */
 
 #endif
-
-#ifdef NOTYET
 
 /*
  * Create a minor node (plus a whole lot more) for the specified volume.
@@ -617,6 +615,7 @@ zvol_create_minor(const char *name)
 	return (0);
 }
 
+#ifdef NOTYET
 /*
  * Remove minor node for the specified volume.
  */
@@ -2252,9 +2251,6 @@ zvol_create_snapshots(objset_t *os, const char *name)
 int
 zvol_create_minors(const char *name)
 {
-#ifdef __OSV__
-	abort();
-#else
 	uint64_t cookie;
 	objset_t *os;
 	char *osname, *p;
@@ -2314,7 +2310,6 @@ zvol_create_minors(const char *name)
 	dmu_objset_rele(os, FTAG);
 	kmem_free(osname, MAXPATHLEN);
 	return (0);
-#endif
 }
 
 #ifdef NOTYET
