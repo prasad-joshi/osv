@@ -4,6 +4,91 @@
 #include <errno.h>
 #include <osv/mount.h>
 
+class mntent final : public special_file {
+    public:
+        mntent() : special_file(FREAD, DTYPE_UNSPEC)
+        {}
+
+        int close() { return 0; }
+
+        virtual int read(struct uio *uio, int flags) override;
+
+    private:
+        void get_mntline(mount_desc& m, std::string& line);
+};
+
+void mntent::get_mntline(mount_desc& m, std::string& line)
+{
+    int len = m.spacial.size() + m.path.size() + m.type.size();
+
+    if (m.options.size()) {
+        len += m.options.size();
+    } else {
+        len += strlen(MNTOPT_DEFAULTS);
+    }
+
+    len += 9;
+
+    line.reserve(len);
+
+    char *c = line.c_str();
+    snprintf(c, len, " %s %s %s %s 0 0", m.special.c_str(),
+            m.path.c_str(), m.type.c_str(),
+            m.options.size() ? m.options.c_str() : MNTOPT_DEFAULTS);
+}
+
+int mntent::read(struct uio *uio, int flags)
+{
+    auto         mounts = osv::current_mounts();
+    off_t        skip   = uio->uio_offset;
+    std::string  line;
+    struct iovec *iov;
+    size_t       n;
+
+    int j = 0;
+    int iov_skip = 0;
+    for (int i = 0; i < mounts.size(); i++) {
+        auto& m = mounts[i];
+
+        get_mntline(m, line);
+        if (skip > 0) {
+            if (skip >= line.size()) {
+                skip -= line.size();
+                continue;
+            }
+        }
+
+        int  t  = line.size() - skip;
+        char *q = line.c_str();
+
+        for ( ; t > 0 && uio->uio_resid > 0; ) {
+            iov = uio->uio_iov + j;
+            n   = std::min(iov->iov_len - iov_skip, t);
+            p   = static_cast<char *> (iov->iov_base) + iov_skip;
+            std::copy(p, p + n, q);
+
+            if (n == t) {
+                j++;
+                iov_skip = 0;
+            } else {
+                iov_skip = n;
+            }
+
+            t -= n;
+            q += n;
+            skip = 0;
+            uio->uio_resid -= n;
+        }
+    }
+
+    return 0;
+}
+
+int mntent::write(struct uio *uio, int flags)
+{
+    return 0;
+}
+
 FILE *setmntent(const char *name, const char *mode)
 {
     if (!strcmp(name, "/proc/mounts") || !strcmp(name, "/etc/mnttab") || !strcmp(name, "/etc/mtab")) {
