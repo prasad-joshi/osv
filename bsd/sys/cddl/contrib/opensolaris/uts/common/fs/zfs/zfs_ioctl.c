@@ -3038,12 +3038,10 @@ zfs_ioc_create(zfs_cmd_t *zc)
 		cbfunc = zfs_create_cb;
 		break;
 
-#ifdef NOTYET
 	case DMU_OST_ZVOL:
 		cbfunc = zvol_create_cb;
 		break;
 
-#endif
 	default:
 		cbfunc = NULL;
 		break;
@@ -3153,10 +3151,8 @@ zfs_ioc_create(zfs_cmd_t *zc)
 			(void) dmu_objset_destroy(zc->zc_name, B_FALSE);
 	}
 	nvlist_free(nvprops);
-#ifdef __FreeBSD__
 	if (error == 0 && type == DMU_OST_ZVOL)
 		zvol_create_minors(zc->zc_name);
-#endif
 	return (error);
 }
 
