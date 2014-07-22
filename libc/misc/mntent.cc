@@ -40,6 +40,8 @@ bool osv_getmntent(char *linebuf, int buflen)
                  m.path.c_str(),
                  m.type.c_str(),
                  m.options.size() ? m.options.c_str() : MNTOPT_DEFAULTS);
+
+	printf("%s linebuf = %s\n", __func__, linebuf);
         return true;
     }
 }
@@ -58,11 +60,13 @@ struct mntent *getmntent_r(FILE *f, struct mntent *mnt, char *linebuf, int bufle
     do {
 
         if (f == OSV_DYNMOUNTS) {
+		printf("%s 1\n", __func__);
             bool ret = osv_getmntent(linebuf, buflen);
             if (!ret) {
                 return nullptr;
             }
         } else {
+		printf("%s 2\n", __func__);
             fgets(linebuf, buflen, f);
             if (feof(f) || ferror(f)) return 0;
             if (!strchr(linebuf, '\n')) {

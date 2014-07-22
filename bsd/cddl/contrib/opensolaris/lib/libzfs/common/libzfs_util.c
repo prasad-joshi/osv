@@ -653,11 +653,20 @@ libzfs_init(void)
 		return (NULL);
 	}
 
+#ifdef __OSV__
+	hdl->libzfs_mnttab = setmntent(MNTTAB, "r");
+	if (hdl->libzfs_mnttab == NULL) {
+		(void) close(hdl->libzfs_fd);
+		free(hdl);
+		return (NULL);
+	}
+#else
 	if ((hdl->libzfs_mnttab = fopen(MNTTAB, "r")) == NULL) {
 		(void) close(hdl->libzfs_fd);
 		free(hdl);
 		return (NULL);
 	}
+#endif
 
 	hdl->libzfs_sharetab = fopen(ZFS_EXPORTS_PATH, "r");
 
