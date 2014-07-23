@@ -4,51 +4,46 @@
 #include <errno.h>
 #include <osv/mount.h>
 
-class mntent final : public special_file {
+class mtab_file final : public special_file {
     public:
-        mntent() : special_file(FREAD, DTYPE_UNSPEC)
-        {}
+        mtab_file() : special_file(FREAD, DTYPE_UNSPEC)
+        {
+            _mounts = osv::current_mounts();
+        }
 
         int close() { return 0; }
 
         virtual int read(struct uio *uio, int flags) override;
 
     private:
+        std::vector<mount_desc> _mounts;
+
+    private:
         void get_mntline(mount_desc& m, std::string& line);
 };
 
-void mntent::get_mntline(mount_desc& m, std::string& line)
+void mtab_file::get_mntline(mount_desc& m, std::string& line)
 {
-    int len = m.spacial.size() + m.path.size() + m.type.size();
+    std::stringstream fmt;
 
-    if (m.options.size()) {
-        len += m.options.size();
-    } else {
-        len += strlen(MNTOPT_DEFAULTS);
-    }
+    fmt << " " << m.special << " " << m.path << " " << m.type << " "
+        << (m.options.size() ? m.options : MNTOPT_DEFAULTS) << " 0 0";
 
-    len += 9;
-
-    line.reserve(len);
-
-    char *c = line.c_str();
-    snprintf(c, len, " %s %s %s %s 0 0", m.special.c_str(),
-            m.path.c_str(), m.type.c_str(),
-            m.options.size() ? m.options.c_str() : MNTOPT_DEFAULTS);
+    line = fmt.str();
 }
 
-int mntent::read(struct uio *uio, int flags)
+int mtab_file::read(struct uio *uio, int flags)
 {
-    auto         mounts = osv::current_mounts();
-    off_t        skip   = uio->uio_offset;
     std::string  line;
+    off_t        skip = uio->uio_offset;
     struct iovec *iov;
     size_t       n;
+    char         *p;
 
     int j = 0;
     int iov_skip = 0;
-    for (int i = 0; i < mounts.size(); i++) {
-        auto& m = mounts[i];
+    for (int i = 0; i < _mounts.size() && uio->uio_resid > 0; i++) {
+        auto& m = _mounts[i];
 
         get_mntline(m, line);
         if (skip > 0) {
@@ -58,27 +53,27 @@ int mntent::read(struct uio *uio, int flags)
             }
         }
 
-        int  t  = line.size() - skip;
-        char *q = line.c_str();
+        size_t t = line.size() - skip;
+        const char *q = line.c_str() + skip;
 
-        for ( ; t > 0 && uio->uio_resid > 0; ) {
+        for (; t > 0 && uio->uio_resid > 0; ) {
             iov = uio->uio_iov + j;
-            n   = std::min(iov->iov_len - iov_skip, t);
-            p   = static_cast<char *> (iov->iov_base) + iov_skip;
-            std::copy(p, p + n, q);
+            n = std::min(iov->iov_len - iov_skip, t);
+            p = static_cast<char *> (iov->iov_base) + iov_skip;
+            std::copy(q, q+n, p);
 
             if (n == t) {
-                j++;
-                iov_skip = 0;
+                iov_skip += n;
             } else {
-                iov_skip = n;
+                iov_skip = 0;
+                j++;
             }
 
-            t -= n;
-            q += n;
-            skip = 0;
-            uio->uio_resid -= n;
+            t		-= n;
+            uio->uio_resid	-= n;
+            q		+= n;
         }
+        skip = 0;
     }
 
     return 0;
