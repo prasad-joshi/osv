@@ -211,8 +211,6 @@ is_mounted(libzfs_handle_t *zfs_hdl, const char *special, char **where)
 {
 	struct mnttab entry;
 
-	printf("%s ==>\n", __func__);
-
 	if (libzfs_mnttab_find(zfs_hdl, special, &entry) != 0)
 		return (B_FALSE);
 

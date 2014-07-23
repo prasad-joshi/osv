@@ -347,7 +347,6 @@ libc += misc/realpath.o
 libc += misc/backtrace.o
 libc += misc/uname.o
 libc += misc/lockf.o
-libc += misc/mntent.o
 libc += misc/__longjmp_chk.o
 
 libc += multibyte/btowc.o
@@ -525,6 +524,7 @@ libc += stdio/vwprintf.o
 libc += stdio/vwscanf.o
 libc += stdio/wprintf.o
 libc += stdio/wscanf.o
+libc += stdio/mntent.o
 
 libc += stdlib/abs.o
 libc += stdlib/atof.o

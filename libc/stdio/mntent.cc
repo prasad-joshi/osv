@@ -3,6 +3,10 @@
 #include <mntent.h>
 #include <errno.h>
 #include <osv/mount.h>
+#include <fs/fs.hh>
+#include <sstream>
+#include <libc/libc.hh>
+#include "stdio_impl.h"
 
 class mtab_file final : public special_file {
     public:
@@ -16,33 +20,43 @@ class mtab_file final : public special_file {
         virtual int read(struct uio *uio, int flags) override;
 
     private:
-        std::vector<mount_desc> _mounts;
+        std::vector<osv::mount_desc> _mounts;
 
     private:
-        void get_mntline(mount_desc& m, std::string& line);
+        void get_mntline(osv::mount_desc& m, std::string& line);
 };
 
-void mtab_file::get_mntline(mount_desc& m, std::string& line)
+void mtab_file::get_mntline(osv::mount_desc& m, std::string& line)
 {
     std::stringstream fmt;
 
     fmt << " " << m.special << " " << m.path << " " << m.type << " "
-        << (m.options.size() ? m.options : MNTOPT_DEFAULTS) << " 0 0";
+        << (m.options.size() ? m.options : MNTOPT_DEFAULTS) << " 0 0\n";
 
     line = fmt.str();
 }
 
 int mtab_file::read(struct uio *uio, int flags)
 {
+    auto fp = this;
     std::string  line;
-    off_t        skip = uio->uio_offset;
     struct iovec *iov;
     size_t       n;
     char         *p;
 
+    size_t skip = 0;
+    if ((flags & FOF_OFFSET) == 0) {
+        skip = fp->f_offset;
+    } else {
+        skip = uio->uio_offset;
+    }
+
     int j = 0;
     int iov_skip = 0;
-    for (int i = 0; i < _mounts.size() && uio->uio_resid > 0; i++) {
+
+
+    size_t bc = 0;
+    for (size_t i = 0; i < _mounts.size() && uio->uio_resid > 0; i++) {
         auto& m = _mounts[i];
 
         get_mntline(m, line);
@@ -69,18 +83,17 @@ int mtab_file::read(struct uio *uio, int flags)
                 j++;
             }
 
-            t		-= n;
-            uio->uio_resid	-= n;
-            q		+= n;
+            t              -= n;
+            uio->uio_resid -= n;
+            q              += n;
+            bc             += n;
         }
         skip = 0;
     }
 
-    return 0;
-}
-
-int mntent::write(struct uio *uio, int flags)
-{
+    if ((flags & FOF_OFFSET) == 0) {
+        fp->f_offset += bc;
+    }
     return 0;
 }
 
@@ -91,7 +104,22 @@ FILE *setmntent(const char *name, const char *mode)
             return nullptr;
         }
 
-        return OSV_DYNMOUNTS;
+        fileref f = make_file<mtab_file>();
+        struct file * fp = f.get();
+        if (fp == NULL) {
+            return nullptr;
+        }
+
+        fhold(fp);
+
+        int fd;
+        int rc = fdalloc(fp, &fd);
+        fdrop(fp);
+        if (rc) {
+            return nullptr;
+        }
+
+        return __fdopen(fd, "r");
     }
     return fopen(name, mode);
 }
@@ -121,7 +149,6 @@ bool osv_getmntent(char *linebuf, int buflen)
                  m.type.c_str(),
                  m.options.size() ? m.options.c_str() : MNTOPT_DEFAULTS);
 
-	printf("%s linebuf = %s\n", __func__, linebuf);
         return true;
     }
 }
@@ -138,15 +165,12 @@ struct mntent *getmntent_r(FILE *f, struct mntent *mnt, char *linebuf, int bufle
     mnt->mnt_passno = 0;
 
     do {
-
         if (f == OSV_DYNMOUNTS) {
-		printf("%s 1\n", __func__);
             bool ret = osv_getmntent(linebuf, buflen);
             if (!ret) {
                 return nullptr;
             }
         } else {
-		printf("%s 2\n", __func__);
             fgets(linebuf, buflen, f);
             if (feof(f) || ferror(f)) return 0;
             if (!strchr(linebuf, '\n')) {

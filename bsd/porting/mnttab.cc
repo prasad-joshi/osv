@@ -11,8 +11,6 @@ extern "C" int bsd_getmntent(FILE *fp, struct mnttab *mp)
 {
 	struct mntent *e;
 
-	printf("%s callled\n", __func__);
-
 	e = getmntent(fp);
 	if (!e) {
 		return -1;

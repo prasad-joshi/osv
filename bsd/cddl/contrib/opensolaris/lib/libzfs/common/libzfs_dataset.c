@@ -682,11 +682,8 @@ libzfs_mnttab_update(libzfs_handle_t *hdl)
 {
 	struct mnttab entry;
 
-	printf("%s adding entry\n", __func__);
-
 	rewind(hdl->libzfs_mnttab);
 	while (getmntent(hdl->libzfs_mnttab, &entry) == 0) {
-		printf("%s 1\n", __func__);
 		mnttab_node_t *mtn;
 
 		if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
@@ -697,8 +694,6 @@ libzfs_mnttab_update(libzfs_handle_t *hdl)
 		mtn->mtn_mt.mnt_fstype = zfs_strdup(hdl, entry.mnt_fstype);
 		mtn->mtn_mt.mnt_mntopts = zfs_strdup(hdl, entry.mnt_mntopts);
 		avl_add(&hdl->libzfs_mnttab_cache, mtn);
-
-		printf("%s entry.mnt_mountp = %s added \n", __func__, entry.mnt_mountp);
 	}
 }
 
@@ -731,12 +726,8 @@ libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
 	mnttab_node_t find;
 	mnttab_node_t *mtn;
 
-	printf("%s ==> hdl->libzfs_mnttab_enable = %d\n", __func__, hdl->libzfs_mnttab_enable);
-
 	if (!hdl->libzfs_mnttab_enable) {
 		struct mnttab srch = { 0 };
-
-		printf("%s 1\n", __func__);
 
 		if (avl_numnodes(&hdl->libzfs_mnttab_cache))
 			libzfs_mnttab_fini(hdl);
@@ -748,19 +739,16 @@ libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
 		else
 			return (ENOENT);
 	}
-		printf("%s 2\n", __func__);
 
 	if (avl_numnodes(&hdl->libzfs_mnttab_cache) == 0)
 		libzfs_mnttab_update(hdl);
 
-		printf("%s 3\n", __func__);
 	find.mtn_mt.mnt_special = (char *)fsname;
 	mtn = avl_find(&hdl->libzfs_mnttab_cache, &find, NULL);
 	if (mtn) {
 		*entry = mtn->mtn_mt;
 		return (0);
 	}
-		printf("%s 4 <<=\n", __func__);
 	return (ENOENT);
 }
 
