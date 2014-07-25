@@ -38,26 +38,24 @@ void mtab_file::get_mntline(osv::mount_desc& m, std::string& line)
 
 int mtab_file::read(struct uio *uio, int flags)
 {
-    auto fp = this;
-    std::string  line;
+    auto         fp = this;
     struct iovec *iov;
     size_t       n;
     char         *p;
 
-    size_t skip = 0;
+    size_t       skip = uio->uio_offset;
     if ((flags & FOF_OFFSET) == 0) {
         skip = fp->f_offset;
-    } else {
-        skip = uio->uio_offset;
     }
 
     int j = 0;
     int iov_skip = 0;
 
-
+    _mounts = osv::current_mounts();
     size_t bc = 0;
     for (size_t i = 0; i < _mounts.size() && uio->uio_resid > 0; i++) {
-        auto& m = _mounts[i];
+        auto&        m = _mounts[i];
+        std::string  line;
 
         get_mntline(m, line);
         if (skip > 0) {
@@ -126,31 +124,8 @@ FILE *setmntent(const char *name, const char *mode)
 
 int endmntent(FILE *f)
 {
-    if (f != OSV_DYNMOUNTS) {
-        fclose(f);
-    }
+    fclose(f);
     return 1;
-}
-
-bool osv_getmntent(char *linebuf, int buflen)
-{
-    // FIXME: we're using a static here in lieu of the file offset
-    static size_t last = 0;
-    auto mounts = osv::current_mounts();
-    if (last >= mounts.size()) {
-        last = 0;
-        return false;
-    } else {
-        auto& m = mounts[last++];
-
-        snprintf(linebuf, buflen, " %s %s %s %s 0 0",
-                 m.special.c_str(),
-                 m.path.c_str(),
-                 m.type.c_str(),
-                 m.options.size() ? m.options.c_str() : MNTOPT_DEFAULTS);
-
-        return true;
-    }
 }
 
 struct mntent *getmntent_r(FILE *f, struct mntent *mnt, char *linebuf, int buflen)
@@ -165,18 +140,11 @@ struct mntent *getmntent_r(FILE *f, struct mntent *mnt, char *linebuf, int bufle
     mnt->mnt_passno = 0;
 
     do {
-        if (f == OSV_DYNMOUNTS) {
-            bool ret = osv_getmntent(linebuf, buflen);
-            if (!ret) {
-                return nullptr;
-            }
-        } else {
             fgets(linebuf, buflen, f);
             if (feof(f) || ferror(f)) return 0;
             if (!strchr(linebuf, '\n')) {
                 fscanf(f, "%*[^\n]%*[\n]");
                 return nullptr;
-            }
         }
         cnt = sscanf(linebuf, " %n%*s%n %n%*s%n %n%*s%n %n%*s%n %d %d",
             n, n+1, n+2, n+3, n+4, n+5, n+6, n+7,
@@ -203,11 +171,24 @@ struct mntent *getmntent(FILE *f)
     return getmntent_r(f, &mnt, linebuf, sizeof linebuf);
 }
 
+bool is_mtab_file(FILE *fp)
+{
+    struct file *f;
+    int         error = fget(fp->fd, &f);
+
+    if (error || f == NULL || !(f->f_flags & DTYPE_UNSPEC)) {
+        return false;
+    }
+
+    return true;
+}
+
 int addmntent(FILE *f, const struct mntent *mnt)
 {
-    if (f == OSV_DYNMOUNTS) {
+    if (is_mtab_file(f)) {
         return 1;
     }
+
     if (fseek(f, 0, SEEK_END)) return 1;
     return fprintf(f, "%s\t%s\t%s\t%s\t%d\t%d\n",
         mnt->mnt_fsname, mnt->mnt_dir, mnt->mnt_type, mnt->mnt_opts,
