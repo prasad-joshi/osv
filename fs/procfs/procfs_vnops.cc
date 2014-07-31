@@ -27,6 +27,20 @@ namespace procfs {
 
 using namespace std;
 
+int nullop(void) { return 0; }
+typedef int (*procfnop_open_t)  (file *fp);
+typedef int (*procfnop_close_t) (file *fp);
+typedef int (*procfnop_read_t)  (file *fp, std::string &data);
+
+struct proc_file_node_ops {
+    procfnop_open_t     pfop_open;
+    procfnop_close_t    pfop_close;
+    procfnop_read_t     pfop_read;
+};
+
+#define no_open         ((procfnop_open_t)nullop)
+#define no_close        ((procfnop_close_t)nullop)
+
 class proc_node {
 public:
     proc_node(uint64_t ino, int type) : _ino(ino), _type(type) { }
@@ -46,9 +60,9 @@ private:
 
 class proc_file_node : public proc_node {
 public:
-    proc_file_node(uint64_t ino, function<string ()> gen)
+    proc_file_node(uint64_t ino, struct proc_file_node_ops *ops)
         : proc_node(ino, VREG)
-        , _gen(gen)
+        , _ops(ops)
     { }
 
     virtual off_t size() const override {
@@ -57,11 +71,13 @@ public:
     virtual mode_t mode() const override {
         return S_IRUSR|S_IRGRP|S_IROTH;
     }
-    string* data() const {
-        return new string(_gen());
+    string* data(file *fp) const {
+        std::string *s = new std::string();
+        _ops->pfop_read(fp, *s);
+        return s;
     }
 private:
-    function<string ()> _gen;
+    struct proc_file_node_ops *_ops;
 };
 
 class proc_dir_node : public proc_node {
@@ -84,8 +100,8 @@ public:
     bool is_empty() {
         return _children.empty();
     }
-    void add(string name, uint64_t ino, function<string ()> gen) {
-        _children.insert({name, make_shared<proc_file_node>(ino, gen)});
+    void add(string name, uint64_t ino, proc_file_node_ops *ops) {
+        _children.insert({name, make_shared<proc_file_node>(ino, ops)});
     }
     void add(string name, shared_ptr<proc_node> np) {
         _children.insert({name, np});
@@ -127,7 +143,7 @@ procfs_open(file* fp)
 {
     auto* np = to_file_node(fp->f_dentry->d_vnode);
     if (np) {
-        fp->f_data = np->data();
+        fp->f_data = np->data(fp);
     }
     return 0;
 }
@@ -326,14 +342,38 @@ static std::string procfs_stats()
 
 }
 
+int read_maps(file *fp, std::string &data)
+{
+    data = mmu::procfs_maps();
+    return 0;
+}
+
+struct proc_file_node_ops maps_ops = {
+    no_open,
+    no_close,
+    read_maps,
+};
+
+int read_stats(file *fp, std::string &data)
+{
+    data = procfs_stats();
+    return 0;
+}
+
+struct proc_file_node_ops stats_ops = {
+    no_open,
+    no_close,
+    read_stats,
+};
+
 static int
 procfs_mount(mount* mp, const char *dev, int flags, void* data)
 {
     auto* vp = mp->m_root->d_vnode;
 
     auto self = make_shared<proc_dir_node>(inode_count++);
-    self->add("maps", inode_count++, mmu::procfs_maps);
-    self->add("stat", inode_count++, procfs_stats);
+    self->add("maps", inode_count++, &maps_ops);
+    self->add("stat", inode_count++, &stats_ops);
 
     auto* root = new proc_dir_node(vp->v_ino);
     root->add("self", self);
