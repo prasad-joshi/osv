@@ -20,16 +20,6 @@ class mtab_file final : public special_file {
         void get_mntline(osv::mount_desc& m, std::string& line);
 };
 
-void mtab_file::get_mntline(osv::mount_desc& m, std::string& line)
-{
-    std::stringstream fmt;
-
-    fmt << " " << m.special << " " << m.path << " " << m.type << " "
-        << (m.options.size() ? m.options : MNTOPT_DEFAULTS) << " 0 0\n";
-
-    line = fmt.str();
-}
-
 int mtab_file::read(struct uio *uio, int flags)
 {
     auto   fp = this;
@@ -49,7 +39,9 @@ int mtab_file::read(struct uio *uio, int flags)
         auto&        m = mounts[i];
         std::string  line;
 
-        get_mntline(m, line);
+        line = m.special + " " + m.path + " " + m.type + " " +
+            (m.options.size() ? m.options : MNTOPT_DEFAULTS) + " 0 0\n";
+
         if (skip > 0) {
             if (skip >= line.size()) {
                 skip -= line.size();
@@ -166,15 +158,17 @@ struct mntent *getmntent(FILE *f)
 
 bool is_mtab_file(FILE *fp)
 {
-    struct file *f    = NULL;
-    int         error = fget(fp->fd, &f);
+    fileref fr(fileref_from_fd(fp->fd));
 
-    if (error || f == NULL) {
+    if (!fr) {
         return false;
     }
-    fdrop(f);
 
-    return !!(f->f_flags & DTYPE_UNSPEC);
+    auto mpo = dynamic_cast<mtab_file *>(fr.get());
+    if (!mpo) {
+        return false;
+    }
+    return true;
 }
 
 int addmntent(FILE *f, const struct mntent *mnt)

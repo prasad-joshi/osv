@@ -6615,20 +6615,11 @@ main(int argc, char **argv)
 
 	libzfs_print_on_error(g_zfs, B_TRUE);
 
-#ifdef __OSV__
-	mnttab_file = setmntent(MNTTAB, "r");
-	if (mnttab_file == NULL) {
-		(void) fprintf(stderr, gettext("internal error: unable to "
-		    "open %s\n"), MNTTAB);
-		return 1;
-	}
-#else
 	if ((mnttab_file = fopen(MNTTAB, "r")) == NULL) {
 		(void) fprintf(stderr, gettext("internal error: unable to "
 		    "open %s\n"), MNTTAB);
 		return (1);
 	}
-#endif
 
 	/*
 	 * This command also doubles as the /etc/fs mount and unmount program.
