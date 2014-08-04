@@ -85,6 +85,7 @@ extern "C" {
     void vfs_init(void);
     void mount_zfs_rootfs(void);
     void ramdisk_init(void);
+    void mount_procfs(void);
 }
 
 void premain()
@@ -374,6 +375,8 @@ void* do_main_thread(void *_commands)
         mount_zfs_rootfs();
         bsd_shrinker_init();
         zfsdev::zfsdev_init();
+    } else {
+        mount_procfs();
     }
     boot_time.event("ZFS mounted");
 

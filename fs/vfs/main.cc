@@ -2005,6 +2005,20 @@ int nmount(struct iovec *iov, unsigned niov, int flags)
     return sys_mount(a.from, a.fspath, a.fstype, flags, nullptr);
 }
 
+extern "C" void mount_procfs(void)
+{
+    if (mkdir("/proc", 0755) < 0) {
+        if (errno != EEXIST) {
+            printf("failed to create /proc, error = %s\n", strerror(errno));
+        }
+    }
+
+    int ret = sys_mount("none", "/proc", "procfs", 0, NULL);
+    if (ret) {
+        printf("failed to mount %s, error = %s\n", "procfs", strerror(ret));
+    }
+}
+
 extern "C" void mount_zfs_rootfs(void)
 {
     int ret;
