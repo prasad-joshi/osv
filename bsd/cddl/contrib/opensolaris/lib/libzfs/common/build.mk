@@ -10,6 +10,7 @@ libzfs-objects += bsd/cddl/compat/opensolaris/misc/mkdirp.o
 libzfs-objects += bsd/cddl/compat/opensolaris/misc/zmount.o
 libzfs-objects += bsd/cddl/contrib/opensolaris/lib/libzfs/common/zfs_prop.o
 libzfs-objects += bsd/cddl/contrib/opensolaris/lib/libzfs/common/zprop_common.o
+libzfs-objects += $(src)/bsd/porting/mnttab.o
 
 define libzfs-includes
   bsd/cddl/compat/opensolaris/lib/libumem
