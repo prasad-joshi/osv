@@ -2099,7 +2099,7 @@ extern "C" void mount_zfs_rootfs(void)
         if (ret) {
             printf("failed to mount %s, error = %s\n", m->mnt_type, strerror(ret));
         }
-    } while (m != nullptr);
+    }
     endmntent(ent);
 
     import_extra_zfs_pools();
