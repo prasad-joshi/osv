@@ -80,6 +80,7 @@
 #include <sys/zil_impl.h>
 #include <sys/dbuf.h>
 #include <geom/geom.h>
+#include <osv/debug.h>
 
 #include "zfs_namecheck.h"
 
@@ -397,7 +398,6 @@ zvol_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx)
 	ASSERT(error == 0);
 }
 
-#ifdef NOTYET
 /*
  * Replay a TX_WRITE ZIL transaction that didn't get committed
  * after a system failure
@@ -473,6 +473,7 @@ zil_replay_func_t *zvol_replay_vector[TX_MAX_TYPE] = {
 	(zil_replay_func_t *)zvol_replay_err,	/* TX_WRITE2 */
 };
 
+#ifdef NOTYET
 #ifdef sun
 int
 zvol_name2minor(const char *name, minor_t *minor)
@@ -490,6 +491,9 @@ zvol_name2minor(const char *name, minor_t *minor)
 
 #endif
 
+#define DROP_GIANT() do {} while (0)
+#define PICKUP_GIANT() do {} while (0)
+
 /*
  * Create a minor node (plus a whole lot more) for the specified volume.
  */
@@ -504,6 +508,7 @@ zvol_create_minor(const char *name)
 	int error;
 
 	ZFS_LOG(1, "Creating ZVOL %s...", name);
+	kprintf("%s called\n");
 
 	mutex_enter(&spa_namespace_lock);
 
@@ -2203,6 +2208,7 @@ zvol_geom_worker(void *arg)
 		}
 	}
 }
+#endif
 
 extern boolean_t dataset_name_hidden(const char *name);
 
@@ -2246,8 +2252,6 @@ zvol_create_snapshots(objset_t *os, const char *name)
 	return (error);
 }
 
-#endif
-
 int
 zvol_create_minors(const char *name)
 {
@@ -2256,6 +2260,7 @@ zvol_create_minors(const char *name)
 	char *osname, *p;
 	int error, len;
 
+	kprintf("%s called\n", __func__);
 	if (dataset_name_hidden(name))
 		return (0);
 

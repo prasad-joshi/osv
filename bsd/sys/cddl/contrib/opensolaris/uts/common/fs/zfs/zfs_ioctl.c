@@ -3139,6 +3139,8 @@ zfs_ioc_create(zfs_cmd_t *zc)
 		error = dmu_objset_create(zc->zc_name, type,
 		    is_insensitive ? DS_FLAG_CI_DATASET : 0, cbfunc, &zct);
 		nvlist_free(zct.zct_zplprops);
+
+		kprintf("%s error = %d\n", __func__, error);
 	}
 
 	/*
